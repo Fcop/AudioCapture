@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Captura de Audio</title>
+</head>
+<body>
+    <button id="recordButton">Grabar</button>
+    <button id="stopButton" disabled>Detener</button>
+
+    <script>
+        let mediaRecorder;
+        let audioChunks = [];
+
+        document.getElementById("recordButton").onclick = async function() {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            mediaRecorder.start();
+            document.getElementById("stopButton").disabled = false;
+            document.getElementById("recordButton").disabled = true;
+
+            mediaRecorder.ondataavailable = event => {
+                audioChunks.push(event.data);
+            };
+        };
+
+        document.getElementById("stopButton").onclick = async function() {
+            mediaRecorder.stop();
+            mediaRecorder.onstop = async () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                audioChunks = [];
+
+                // Enviar el audio a Node-RED
+                const formData = new FormData();
+                formData.append("audio", audioBlob, "recording.wav");
+
+                await fetch('http://192.168.1.250:1881/upload_audio', { // Cambia la URL a tu endpoint en Node-RED
+                    method: "POST",
+                    body: formData
+                });
+
+                document.getElementById("stopButton").disabled = true;
+                document.getElementById("recordButton").disabled = false;
+            };
+        };
+    </script>
+</body>
+</html>
